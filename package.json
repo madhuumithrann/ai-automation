@@ -1,0 +1,11 @@
+{
+  "name": "eventform-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Turn an event description into a customized Google feedback form.",
+  "scripts": {
+    "test": "node test/validate.test.js"
+  },
+  "engines": { "node": ">=18" }
+}

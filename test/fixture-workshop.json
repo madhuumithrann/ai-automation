@@ -1,0 +1,14 @@
+{"title":"AI Agents Workshop — Feedback","description":"Thanks for joining the AI Agents workshop! Your feedback helps us improve future sessions.",
+"event_analysis":{"event_type":"Technical Workshop","audience":"Second-year CSE students","purpose":"Teach practical AI agent development with LLMs and tool calling","activities":["Concept lecture","Hands-on agent implementation"],"technical_details":["LLMs","Tool calling","Agent workflows"],"expected_outcomes":["Students can build a simple agent"]},
+"feedback_strategy":[{"dimension":"Content Clarity","reason":"Checks whether core agent concepts landed."},{"dimension":"Hands-on Experience","reason":"The build session is the main learning activity."},{"dimension":"Difficulty & Pacing","reason":"3 hours is dense for second-years."},{"dimension":"Practical Confidence","reason":"Measures the workshop's stated outcome."},{"dimension":"Overall & Improvement","reason":"Captures actionable next steps."}],
+"questions":[
+{"question":"How clear was the explanation of how LLMs work?","type":"rating","required":true,"dimension":"Content Clarity","reason":"Foundation clarity"},
+{"question":"How clear was the explanation of tool calling?","type":"rating","required":true,"dimension":"Content Clarity","reason":"Key concept"},
+{"question":"How well did you understand agent workflows by the end of the session?","type":"rating","required":true,"dimension":"Content Clarity","reason":"Concept retention"},
+{"question":"How useful was the hands-on session where you built a small agent?","type":"rating","required":true,"dimension":"Hands-on Experience","reason":"Activity value"},
+{"question":"Did you complete a working agent during the hands-on session?","type":"single_choice","options":["Yes, fully working","Partially","No"],"required":true,"dimension":"Hands-on Experience","reason":"Completion rate"},
+{"question":"How was the pace of the workshop?","type":"single_choice","options":["Too slow","Just right","Too fast"],"required":true,"dimension":"Difficulty & Pacing","reason":"Pacing"},
+{"question":"Which topics would you like covered in more depth?","type":"multiple_choice","options":["LLM fundamentals","Tool calling","Agent workflows","Debugging agents","Deploying agents"],"required":false,"dimension":"Difficulty & Pacing","reason":"Next session planning"},
+{"question":"How confident are you in building a simple AI agent on your own now?","type":"rating","required":true,"dimension":"Practical Confidence","reason":"Outcome achieved"},
+{"question":"How likely are you to recommend this workshop to a classmate?","type":"rating","required":true,"dimension":"Overall & Improvement","reason":"Overall satisfaction"},
+{"question":"What one change would most improve this workshop?","type":"long_text","required":false,"dimension":"Overall & Improvement","reason":"Actionable improvements"}]}
