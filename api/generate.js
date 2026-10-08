@@ -101,6 +101,30 @@ async function callGemini(model, key, description) {
   }
 }
 
+let modelCache = null;
+// Ask Gemini which models this key can use; pick the newest general-purpose Flash models.
+async function availableModels(key) {
+  if (modelCache) return modelCache;
+  try {
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
+      headers: { "x-goog-api-key": key.trim() },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!r.ok) return [];
+    const { models = [] } = await r.json();
+    const ver = (n) => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+    modelCache = models
+      .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+      .map((m) => m.name.replace(/^models\//, ""))
+      .filter((n) => /^gemini-.*flash/.test(n) && !/(image|tts|audio|live|thinking|exp|embedding|8b)/.test(n))
+      .sort((a, b) => ver(b) - ver(a) || /lite/.test(a) - /lite/.test(b) || /preview/.test(a) - /preview/.test(b) || a.length - b.length)
+      .slice(0, 3);
+    return modelCache;
+  } catch {
+    return [];
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
@@ -111,7 +135,13 @@ export default async function handler(req, res) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return res.status(500).json({ error: "The AI service isn't configured yet." });
 
-  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean);
+  const models = [
+    process.env.GEMINI_MODEL,
+    ...(await availableModels(key)),
+    "gemini-flash-latest",
+    "gemini-3-flash-preview",
+    "gemini-2.5-flash-lite",
+  ].filter(Boolean).slice(0, 4);
   let lastErr;
   const diag = [];
   for (const model of [...new Set(models)]) {
