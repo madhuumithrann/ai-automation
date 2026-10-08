@@ -62,7 +62,7 @@ Question rules:
 
 async function callGemini(model, key, description) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 45000);
+  const timer = setTimeout(() => ctrl.abort(), 25000);
   try {
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
@@ -96,15 +96,18 @@ export default async function handler(req, res) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return res.status(500).json({ error: "The AI service isn't configured yet." });
 
-  const models = [process.env.GEMINI_MODEL || "gemini-2.5-flash", "gemini-2.0-flash"];
+  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean);
   let lastErr;
+  const diag = [];
   for (const model of [...new Set(models)]) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 1; attempt++) {
       try {
         const plan = await callGemini(model, key, description);
         return res.status(200).json(plan);
       } catch (e) {
         lastErr = e;
+        diag.push(`${model}: ${String(e.message).replace(/key=[^&\s]+/g, "key=***").slice(0, 160)}`);
+        if (/HTTP (400|401|403)/.test(e.message) && /API key|API_KEY|PERMISSION/i.test(e.message)) break;
         console.error("generate failed", model, attempt, e.message);
       }
     }
@@ -114,5 +117,6 @@ export default async function handler(req, res) {
     error: busy
       ? "The AI service is busy right now. Please try again in a few seconds."
       : "We couldn't generate your form right now. Please try again.",
+    diag,
   });
 }
