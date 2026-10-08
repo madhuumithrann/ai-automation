@@ -65,11 +65,11 @@ async function callGemini(model, key, description) {
   const timer = setTimeout(() => ctrl.abort(), 25000);
   try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
         method: "POST",
         signal: ctrl.signal,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: PROMPT }] },
           contents: [{ role: "user", parts: [{ text: `EVENT DESCRIPTION:\n"""${description}"""` }] }],
