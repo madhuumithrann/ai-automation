@@ -60,24 +60,36 @@ Question rules:
 - title: "<Event name> — Feedback". description: 1-2 friendly sentences for attendees.
 - reason: one short phrase on what the organizer learns from the answer.`;
 
+const AUTH_MODES = ["header", "query", "bearer"];
+let goodAuth = null; // remember which auth style works for this key
+
+async function geminiFetch(model, key, payload, signal) {
+  const base = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  let last;
+  for (const mode of goodAuth ? [goodAuth] : AUTH_MODES) {
+    const headers = { "Content-Type": "application/json" };
+    let url = base;
+    if (mode === "header") headers["x-goog-api-key"] = key;
+    if (mode === "query") url += `?key=${encodeURIComponent(key)}`;
+    if (mode === "bearer") headers["Authorization"] = `Bearer ${key}`;
+    const r = await fetch(url, { method: "POST", signal, headers, body: payload });
+    if (r.ok) { goodAuth = mode; return r; }
+    last = `Gemini ${model} [${mode}] HTTP ${r.status}: ${(await r.text()).slice(0, 220)}`;
+    if (r.status !== 401 && r.status !== 403 && r.status !== 400) break; // not an auth problem
+  }
+  throw new Error(last);
+}
+
 async function callGemini(model, key, description) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 25000);
   try {
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        signal: ctrl.signal,
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: PROMPT }] },
-          contents: [{ role: "user", parts: [{ text: `EVENT DESCRIPTION:\n"""${description}"""` }] }],
-          generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.6 },
-        }),
-      }
-    );
-    if (!r.ok) throw new Error(`Gemini ${model} HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`);
+    const payload = JSON.stringify({
+      systemInstruction: { parts: [{ text: PROMPT }] },
+      contents: [{ role: "user", parts: [{ text: `EVENT DESCRIPTION:\n"""${description}"""` }] }],
+      generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.6 },
+    });
+    const r = await geminiFetch(model, key.trim(), payload, ctrl.signal);
     const data = await r.json();
     const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
     return validatePlan(JSON.parse(text.replace(/^```json|```$/g, "").trim()));
@@ -107,7 +119,7 @@ export default async function handler(req, res) {
       } catch (e) {
         lastErr = e;
         diag.push(`${model}: ${String(e.message).replace(/key=[^&\s]+/g, "key=***").slice(0, 160)}`);
-        if (/HTTP (400|401|403)/.test(e.message) && /API key|API_KEY|PERMISSION/i.test(e.message)) break;
+        
         console.error("generate failed", model, attempt, e.message);
       }
     }
