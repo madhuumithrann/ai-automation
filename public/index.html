@@ -402,7 +402,7 @@ async function generate(text) {
   try {
     const r = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description: d }) });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || "We couldn't generate your form right now.");
+    if (!r.ok) throw new Error((data.error || "We couldn't generate your form right now.") + (data.diag && data.diag.length ? " [" + data.diag[0] + "]" : ""));
     renderSteps({ understand: "done", strategy: "done", questions: "done", validate: "active" });
     $("#progress-sub").textContent = "Checking every question before showing it…";
     if (!Array.isArray(data.questions) || data.questions.length < 4) throw new Error("The AI response didn't pass validation. Please try again.");
