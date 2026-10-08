@@ -58,7 +58,7 @@ All three AI stages run in one Gemini call with an enforced JSON schema. This ke
 
 - Frontend: one static HTML page with vanilla JS (no build step), Inter font, and qrcodejs from a CDN
 - Backend: Vercel serverless functions (Node 18+, no npm dependencies)
-- AI: Google Gemini (`gemini-2.5-flash`, falling back to `gemini-2.0-flash`) with `responseSchema`
+- AI: Groq (Llama 3.3 70B, JSON mode) and/or Google Gemini (auto-detected Flash model, JSON schema), with automatic failover
 - Google Forms: Google Apps Script web app using `FormApp` (runs as the form owner, so no OAuth flow for end users)
 
 ## Setup
@@ -83,6 +83,7 @@ npm test                  # validator tests
 |---|---|
 | `GEMINI_API_KEY` | Gemini API key (server-side only) |
 | `GEMINI_MODEL` | Optional model override |
+| `GROQ_API_KEY` | Optional: Groq key (used first when set; Gemini is the fallback) |
 | `APPS_SCRIPT_URL` | Deployed Apps Script web app URL |
 | `FORM_SECRET` | Shared secret between Vercel and Apps Script |
 

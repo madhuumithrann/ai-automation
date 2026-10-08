@@ -101,6 +101,33 @@ async function callGemini(model, key, description) {
   }
 }
 
+// Fallback provider: Groq (OpenAI-compatible, free tier). Same prompt, JSON mode, same validator.
+const JSON_SHAPE = `Return ONLY a JSON object with this exact shape:
+{"title": string, "description": string,
+ "event_analysis": {"event_type": string, "audience": string, "purpose": string, "activities": [string], "technical_details": [string], "expected_outcomes": [string]},
+ "feedback_strategy": [{"dimension": string, "reason": string}],
+ "questions": [{"question": string, "type": "rating"|"single_choice"|"multiple_choice"|"short_text"|"long_text", "options": [string], "required": boolean, "dimension": string, "reason": string}]}`;
+
+async function callGroq(model, key, description) {
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    signal: AbortSignal.timeout(30000),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key.trim()}` },
+    body: JSON.stringify({
+      model,
+      temperature: 0.6,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: PROMPT + "\n\n" + JSON_SHAPE },
+        { role: "user", content: `EVENT DESCRIPTION:\n"""${description}"""` },
+      ],
+    }),
+  });
+  if (!r.ok) throw new Error(`Groq ${model} HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const data = await r.json();
+  return validatePlan(JSON.parse(data?.choices?.[0]?.message?.content || ""));
+}
+
 let modelCache = null;
 // Ask Gemini which models this key can use; pick the newest general-purpose Flash models.
 async function availableModels(key) {
@@ -133,7 +160,24 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Please describe your event in a little more detail (at least a sentence)." });
 
   const key = process.env.GEMINI_API_KEY;
-  if (!key) return res.status(500).json({ error: "The AI service isn't configured yet." });
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!key && !groqKey) return res.status(500).json({ error: "The AI service isn't configured yet." });
+  const diag = [];
+  let lastErr;
+
+  // Prefer Groq when configured (fast + free tier); Gemini is the other path.
+  if (groqKey) {
+    for (const model of [process.env.GROQ_MODEL, "llama-3.3-70b-versatile", "openai/gpt-oss-120b", "meta-llama/llama-4-maverick-17b-128e-instruct"].filter(Boolean)) {
+      try {
+        return res.status(200).json(await callGroq(model, groqKey, description));
+      } catch (e) {
+        lastErr = e;
+        diag.push(String(e.message).slice(0, 300));
+        console.error("groq failed", model, e.message);
+      }
+    }
+  }
+  if (!key) return res.status(502).json({ error: "We couldn't generate your form right now. Please try again.", diag });
 
   const models = [
     process.env.GEMINI_MODEL,
@@ -142,8 +186,6 @@ export default async function handler(req, res) {
     "gemini-3-flash-preview",
     "gemini-2.5-flash-lite",
   ].filter(Boolean).slice(0, 4);
-  let lastErr;
-  const diag = [];
   for (const model of [...new Set(models)]) {
     for (let attempt = 0; attempt < 1; attempt++) {
       try {
