@@ -41,7 +41,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ formUrl: data.formUrl, questionCount: data.questionCount });
   } catch (e) {
     console.error("create-form failed", e.message);
-    return res.status(502).json({ error: "We couldn't create the Google Form." });
+    let hint = e.message;
+    if (/non-JSON/.test(hint) && /accounts\.google|Sign in|<html/i.test(hint))
+      hint = "Apps Script asked for sign-in: redeploy the web app with Execute as = Me and Who has access = Anyone.";
+    else if (/unauthorized/.test(hint)) hint = "FORM_SECRET in Vercel doesn't match SECRET in the Apps Script.";
+    else if (/aborted/i.test(hint)) hint = "Apps Script timed out.";
+    return res.status(502).json({ error: "We couldn't create the Google Form.", diag: hint.slice(0, 300) });
   } finally {
     clearTimeout(timer);
   }

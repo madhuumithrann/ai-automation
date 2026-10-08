@@ -594,14 +594,14 @@ async function createForm() {
   try {
     const r = await fetch("/api/create-form", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(currentPlan()) });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok || !data.formUrl) throw new Error(data.error || "We couldn't create the Google Form.");
+    if (!r.ok || !data.formUrl) throw new Error(data.diag || data.error || "We couldn't create the Google Form.");
     state.formUrl = data.formUrl;
     renderSuccess();
     toast("Google Form created");
   } catch (e) {
     btn.disabled = false;
     btn.innerHTML = `${ic("form")}Create Google Form`;
-    $("#create-error").innerHTML = errorBox("We couldn't create the Google Form", "Your generated questions are safe — nothing was lost.",
+    $("#create-error").innerHTML = errorBox("We couldn't create the Google Form", "Your generated questions are safe — nothing was lost." + (e.message ? " [" + e.message + "]" : ""),
       `<button class="btn btn-primary btn-sm" id="c-retry">${ic("refresh")}Retry</button><button class="btn btn-ghost btn-sm" id="c-json">${ic("dl")}Export questions</button>`);
     $("#create-error").classList.remove("hidden");
     $("#c-retry").onclick = createForm;
