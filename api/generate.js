@@ -65,7 +65,7 @@ let goodAuth = null; // remember which auth style works for this key
 
 async function geminiFetch(model, key, payload, signal) {
   const base = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-  let last;
+  const errs = [];
   for (const mode of goodAuth ? [goodAuth] : AUTH_MODES) {
     const headers = { "Content-Type": "application/json" };
     let url = base;
@@ -74,10 +74,13 @@ async function geminiFetch(model, key, payload, signal) {
     if (mode === "bearer") headers["Authorization"] = `Bearer ${key}`;
     const r = await fetch(url, { method: "POST", signal, headers, body: payload });
     if (r.ok) { goodAuth = mode; return r; }
-    last = `Gemini ${model} [${mode}] HTTP ${r.status}: ${(await r.text()).slice(0, 220)}`;
+    const t = await r.text();
+    let msg = t;
+    try { const e = JSON.parse(t).error; msg = `${e.status || ""} ${e.message || ""} ${JSON.stringify(e.details?.map((d) => d.reason).filter(Boolean) || [])}`; } catch {}
+    errs.push(`[${mode} HTTP ${r.status}: ${msg.slice(0, 110)}]`);
     if (r.status !== 401 && r.status !== 403 && r.status !== 400) break; // not an auth problem
   }
-  throw new Error(last);
+  throw new Error(errs.join(" "));
 }
 
 async function callGemini(model, key, description) {
@@ -118,7 +121,7 @@ export default async function handler(req, res) {
         return res.status(200).json(plan);
       } catch (e) {
         lastErr = e;
-        diag.push(`${model}: ${String(e.message).replace(/key=[^&\s]+/g, "key=***").slice(0, 160)}`);
+        diag.push(`${model}: ${String(e.message).replace(/key=[^&\s]+/g, "key=***").slice(0, 420)}`);
         
         console.error("generate failed", model, attempt, e.message);
       }
